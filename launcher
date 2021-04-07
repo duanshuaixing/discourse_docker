@@ -694,7 +694,18 @@ run_bootstrap() {
 
   sleep 5
 
-  $docker_path commit `cat $cidbootstrap` $local_discourse/$config || echo 'FAILED TO COMMIT'
+  # strip environment variables from image prior to committing
+  read -ra to_strip <<<"$($docker_path inspect --format '{{ join .Config.Env " "}}' `cat $cidbootstrap`)"
+
+  change_cmds=""
+  for env_var in "${to_strip[@]}"; do
+    if [[ "${env_var}" == DISCOURSE* ]]; then
+     stripped_var="$(echo ${env_var} | cut -d= -f1)"
+     change_cmds="${change_cmds} --change \"${stripped_var}=''\""
+    fi
+  done
+
+  $docker_path commit "$change_cmds" `cat $cidbootstrap` $local_discourse/$config || echo 'FAILED TO COMMIT'
   $docker_path rm `cat $cidbootstrap` && rm $cidbootstrap
 }
 
