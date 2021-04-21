@@ -1,0 +1,29 @@
+stages:
+  - ssh-check
+  - git-checkout
+  - deploy-app
+deploy_discourse:
+  stage: ssh-check
+  tags:
+  - discourse-runner
+  before_script:
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+  script:
+    - ssh $SSH_USER@$SSH_HOST "hostname"
+  only:
+    - master
+  stage: git-checkout
+  tags:
+  - discourse-runner
+  script:
+    - ssh $SSH_USER@$SSH_HOST "cd /var/discourse && git pull"
+  stage: deploy-app
+  tags:
+  - discourse-runner
+  script:
+    - ssh $SSH_USER@$SSH_HOST "cd /var/discourse && ./launcher rebuild app"
